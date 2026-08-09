@@ -1,8 +1,4 @@
-"""Local AI mesh generation backend.
-
-This connector targets Tencent Hunyuan3D-2 / Hunyuan3D-2mini.
-The model weights are downloaded by Hugging Face on first use and are NOT stored in Git.
-"""
+"""Local AI mesh generation backend."""
 
 import os
 from pathlib import Path
@@ -18,7 +14,7 @@ class MeshGenerator:
 
     def status(self):
         try:
-            import torch  # noqa: F401
+            import torch
             import hy3dgen  # noqa: F401
         except Exception:
             return False, (
@@ -26,8 +22,6 @@ class MeshGenerator:
                 "The desktop UI is ready, but the local AI runtime requires the Hunyuan3D "
                 "Python package, PyTorch, and a compatible GPU/runtime."
             )
-
-        import torch
         device = "CUDA/NVIDIA GPU" if torch.cuda.is_available() else "CPU"
         return True, f"Hunyuan3D engine detected. Runtime device: {device}."
 
@@ -40,12 +34,12 @@ class MeshGenerator:
         except Exception:
             return "cpu"
 
-    def _load(self):
+    def _load(self, progress_callback=None):
         if self._shape_pipeline is not None:
             return
-
+        if progress_callback:
+            progress_callback(15, "Loading Hunyuan3D model...")
         from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-
         device = self._get_device()
         self._shape_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
             self.model_path,
@@ -54,10 +48,12 @@ class MeshGenerator:
             device=device,
         )
 
-    def _make_image_from_text(self, prompt):
+    def _make_image_from_text(self, prompt, progress_callback=None):
         if not prompt:
             return None
         if self._text_pipeline is None:
+            if progress_callback:
+                progress_callback(30, "Creating reference image from prompt...")
             from hy3dgen.text2image import HunyuanDiTPipeline
             self._text_pipeline = HunyuanDiTPipeline(
                 "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
@@ -65,27 +61,32 @@ class MeshGenerator:
             )
         return self._text_pipeline(prompt)
 
-    def generate(self, prompt="", image_path=None, output_format="glb"):
-        from pathlib import Path
-
+    def generate(self, prompt="", image_path=None, output_format="glb", progress_callback=None):
         if not prompt and not image_path:
             raise ValueError("Provide a prompt or a reference image.")
 
-        self._load()
+        def progress(value, text):
+            if progress_callback:
+                progress_callback(value, text)
+
+        progress(5, "Preparing generation...")
+        self._load(progress)
 
         image = None
         if image_path:
+            progress(35, "Loading reference image...")
             from PIL import Image
             image = Image.open(image_path).convert("RGBA")
         else:
-            image = self._make_image_from_text(prompt)
+            image = self._make_image_from_text(prompt, progress)
 
         if image is None:
             raise RuntimeError("Could not create an input image for the 3D model.")
 
+        progress(55, "Generating 3D mesh... this can take a while.")
         mesh = self._shape_pipeline(image=image, output_type="mesh")[0]
 
-        # Hunyuan3D returns a trimesh-compatible object in normal inference builds.
+        progress(90, "Exporting mesh...")
         out_dir = Path("outputs")
         out_dir.mkdir(parents=True, exist_ok=True)
         safe_ext = output_format.lower()
@@ -93,4 +94,5 @@ class MeshGenerator:
             safe_ext = "glb"
         output = out_dir / "generated_mesh.%s" % safe_ext
         mesh.export(str(output))
+        progress(98, "Loading generated mesh into viewer...")
         return str(output.resolve())
