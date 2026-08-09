@@ -23,8 +23,28 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade pip pyinstaller
 
+      - name: Verify project files
+        shell: powershell
+        run: |
+          if (!(Test-Path "app\main.py")) { throw "app\main.py is missing" }
+          if (!(Test-Path "backend\__init__.py")) { throw "backend\__init__.py is missing" }
+          if (!(Test-Path "backend\generator.py")) { throw "backend\generator.py is missing" }
+
       - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name AI-Mesh-Generator app\main.py
+        run: >-
+          pyinstaller --noconfirm --clean --onefile --windowed
+          --name AI-Mesh-Generator
+          --paths .
+          --add-data "backend;backend"
+          --hidden-import backend
+          --hidden-import backend.generator
+          app\main.py
+
+      - name: Test EXE exists
+        shell: powershell
+        run: |
+          if (!(Test-Path "dist\AI-Mesh-Generator.exe")) { throw "EXE was not created" }
+          Get-Item "dist\AI-Mesh-Generator.exe"
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
