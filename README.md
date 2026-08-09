@@ -1,18 +1,56 @@
 # AI Mesh Generator
 
-Windows desktop app for generating 3D meshes with an AI backend.
+Windows desktop application for AI-assisted 3D mesh generation.
 
-## Status
+## Current version
 
-Initial project scaffold. The application is designed for text/image-to-3D generation, local preview, and GLB/OBJ export.
+The GUI is now connected to a real local Hunyuan3D inference adapter.
+
+### Features
+
+- Text prompt -> reference image -> 3D mesh
+- Reference image -> 3D mesh
+- GLB / OBJ export
+- Background generation thread so the UI stays responsive
+- Hunyuan3D model selection through environment variables
+- Windows EXE build through GitHub Actions
 
 ## Architecture
 
-- `app/` - desktop UI and 3D preview
-- `backend/` - AI generation service integration
-- `scripts/` - build helpers
-- `.github/workflows/` - Windows build pipeline
+```text
+Prompt / Image
+      |
+      v
+AI Mesh Generator GUI
+      |
+      v
+backend/generator.py
+      |
+      v
+Tencent Hunyuan3D-2mini
+      |
+      v
+   GLB / OBJ
+```
 
-## Important
+## AI engine
 
-The repository contains the application shell and integration points. A production-quality text-to-3D model requires a compatible 3D generation model and GPU/runtime; the app does not pretend to generate AI meshes without such a model.
+The connector targets Tencent Hunyuan3D-2mini by default. The model weights are intentionally not stored in this repository; they are downloaded by the local ML runtime when configured.
+
+See `backend/HUNYUAN_ENGINE.md` for engine requirements and setup notes.
+
+The official Hunyuan3D project supports text-to-3D by first creating an image from the text prompt and then running image-to-3D shape generation. citeturn3search0
+
+## Hardware note
+
+Local 3D generation is GPU-intensive. The Hunyuan3D project documents dedicated VRAM requirements for shape generation, and its smaller 2mini models are intended to reduce resource use. A compatible NVIDIA GPU is recommended for practical local inference. citeturn6search0
+
+## Windows EXE
+
+GitHub Actions builds `AI-Mesh-Generator.exe` automatically on pushes to `main` and can also be started manually from the Actions page.
+
+PyInstaller packages the application and its Python runtime so the GUI itself does not require a separate Python installation. citeturn4search0
+
+## License notice
+
+If distributing an application that uses Hunyuan3D, review and comply with the model's applicable license and notices. Do not commit model weights into this repository.
