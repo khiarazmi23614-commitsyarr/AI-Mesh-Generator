@@ -39,17 +39,17 @@ The connector targets Tencent Hunyuan3D-2mini by default. The model weights are 
 
 See `backend/HUNYUAN_ENGINE.md` for engine requirements and setup notes.
 
-The official Hunyuan3D project supports text-to-3D by first creating an image from the text prompt and then running image-to-3D shape generation. citeturn3search0
+The official Hunyuan3D project supports text-to-3D by creating an image from the text prompt and then running image-to-3D shape generation.
 
 ## Hardware note
 
-Local 3D generation is GPU-intensive. The Hunyuan3D project documents dedicated VRAM requirements for shape generation, and its smaller 2mini models are intended to reduce resource use. A compatible NVIDIA GPU is recommended for practical local inference. citeturn6search0
+Local 3D generation is GPU-intensive. The Hunyuan3D project documents dedicated VRAM requirements for shape generation, and its smaller 2mini models are intended to reduce resource use. A compatible NVIDIA GPU is recommended for practical local inference.
 
 ## Windows EXE
 
 GitHub Actions builds `AI-Mesh-Generator.exe` automatically on pushes to `main` and can also be started manually from the Actions page.
 
-PyInstaller packages the application and its Python runtime so the GUI itself does not require a separate Python installation. citeturn4search0
+PyInstaller packages the application and its Python runtime so the GUI itself does not require a separate Python installation.
 
 ## License notice
 
