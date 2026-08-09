@@ -12,14 +12,19 @@ jobs:
       image: barichello/godot-ci:4.4.1
     steps:
       - uses: actions/checkout@v4
+
       - name: Import project
         run: godot --headless --path voxel-mobile-apk --editor --quit
-      - name: Export APK
+
+      - name: Export Android APK
         run: |
           mkdir -p voxel-mobile-apk/build
-          godot --headless --path voxel-mobile-apk --export-debug "Android" voxel-mobile-apk/build/VoxelWorld.apk
+          godot --headless --path voxel-mobile-apk --export-debug "Android" build/VoxelWorld.apk
+          test -f voxel-mobile-apk/build/VoxelWorld.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VoxelWorld-Android-APK
           path: voxel-mobile-apk/build/VoxelWorld.apk
+          if-no-files-found: error
