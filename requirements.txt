@@ -1,0 +1,2 @@
+# Desktop UI uses Python's standard library (tkinter).
+# Add the dependencies required by the selected local text-to-3D model here.
