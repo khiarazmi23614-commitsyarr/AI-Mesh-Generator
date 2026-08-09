@@ -1,0 +1,25 @@
+name: Build Voxel World APK
+
+on:
+  push:
+    branches: [voxel-mobile-apk]
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import project
+        run: godot --headless --path voxel-mobile-apk --editor --quit
+      - name: Export APK
+        run: |
+          mkdir -p voxel-mobile-apk/build
+          godot --headless --path voxel-mobile-apk --export-debug "Android" voxel-mobile-apk/build/VoxelWorld.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoxelWorld-Android-APK
+          path: voxel-mobile-apk/build/VoxelWorld.apk
