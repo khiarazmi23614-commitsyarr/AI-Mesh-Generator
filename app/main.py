@@ -1,7 +1,14 @@
 import os
+import sys
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+
+# Make the repository root importable both from source and from the PyInstaller build.
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 from backend.generator import MeshGenerator
 
@@ -16,6 +23,7 @@ class App(tk.Tk):
         self.minsize(820, 600)
         self.generator = MeshGenerator()
         self.output_path = None
+        self.reference_image = None
         self._build()
 
     def _build(self):
@@ -78,7 +86,7 @@ class App(tk.Tk):
 
     def generate(self):
         prompt = self.prompt.get("1.0", "end").strip()
-        image = getattr(self, "reference_image", None)
+        image = self.reference_image
         if not prompt and not image:
             messagebox.showwarning(APP_NAME, "Enter a prompt or choose a reference image.")
             return
@@ -113,7 +121,7 @@ class App(tk.Tk):
             messagebox.showinfo(APP_NAME, "No generated mesh yet.")
 
     def engine_status(self):
-        ok, message = self.generator.status()
+        _, message = self.generator.status()
         messagebox.showinfo("AI Engine Status", message)
 
 
