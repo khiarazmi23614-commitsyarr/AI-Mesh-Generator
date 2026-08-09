@@ -13,6 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Godot Android environment
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates
+          mkdir -p ~/.config
+          if [ -d /root/.config/godot ]; then
+            cp -a /root/.config/godot/. ~/.config/godot/
+          fi
+          if [ -d /root/.local/share/godot/export_templates/4.4.1.stable ]; then
+            cp -a /root/.local/share/godot/export_templates/4.4.1.stable ~/.local/share/godot/export_templates/
+          fi
+          test -f ~/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk
+          test -f ~/.local/share/godot/export_templates/4.4.1.stable/android_release.apk
+
       - name: Import project
         run: godot --headless --path voxel-mobile-apk --editor --quit
 
