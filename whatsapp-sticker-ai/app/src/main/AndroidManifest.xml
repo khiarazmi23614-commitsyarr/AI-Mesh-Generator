@@ -1,5 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
     <application android:theme="@style/AppTheme" android:label="AI Sticker WA" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -7,5 +6,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <provider
+            android:name=".StickerProvider"
+            android:authorities="com.khiar.whatsappstickerai.stickercontentprovider"
+            android:exported="true"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>
