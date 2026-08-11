@@ -1,57 +1,42 @@
 package com.khiar.whatsappstickerai;
 
 import android.app.Activity;
-import android.content.ContentValues;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.*;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Base64;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
-import org.json.JSONObject;
-import java.io.ByteArrayOutputStream;
+import android.provider.Settings;
+import android.view.Gravity;
+import android.widget.*;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private EditText keyInput, promptInput; private ImageView preview; private Bitmap sticker;
-    @Override public void onCreate(Bundle b) { super.onCreate(b); buildUi(); }
-    private void buildUi() {
-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(32,40,32,24);
-        TextView title = new TextView(this); title.setText("AI Sticker WA"); title.setTextSize(28); title.setTextAlignment(TextView.TEXT_ALIGNMENT_CENTER); root.addView(title,new LinearLayout.LayoutParams(-1,-2));
-        TextView info = new TextView(this); info.setText("Buat stiker dari prompt dengan background transparan."); info.setTextSize(15); info.setPadding(0,8,0,18); root.addView(info,new LinearLayout.LayoutParams(-1,-2));
-        keyInput = new EditText(this); keyInput.setHint("OpenAI API key (hanya tersimpan di HP)"); keyInput.setSingleLine(true); keyInput.setInputType(0x81); root.addView(keyInput,new LinearLayout.LayoutParams(-1,-2));
-        promptInput = new EditText(this); promptInput.setHint("Contoh: kucing oren tertawa sambil jempol"); promptInput.setMinLines(2); root.addView(promptInput,new LinearLayout.LayoutParams(-1,-2));
-        Button generate = new Button(this); generate.setText("Buat Stiker AI"); root.addView(generate);
-        preview = new ImageView(this); preview.setAdjustViewBounds(true); preview.setScaleType(ImageView.ScaleType.CENTER_INSIDE); LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,0,1); pp.topMargin=12; root.addView(preview,pp);
-        LinearLayout actions=new LinearLayout(this); actions.setOrientation(LinearLayout.HORIZONTAL); Button save=new Button(this); save.setText("Simpan PNG"); Button wa=new Button(this); wa.setText("Kirim ke WhatsApp"); actions.addView(save,new LinearLayout.LayoutParams(0,-2,1)); actions.addView(wa,new LinearLayout.LayoutParams(0,-2,1)); root.addView(actions); setContentView(root);
-        generate.setOnClickListener(v->generateSticker()); save.setOnClickListener(v->saveSticker()); wa.setOnClickListener(v->shareToWhatsApp());
+    private static final int PICK=10;
+    private Bitmap current;
+    private ImageView preview;
+    private TextView status;
+
+    @Override public void onCreate(Bundle b){super.onCreate(b); build();}
+    private void build(){
+        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(28,35,28,25);
+        TextView title=new TextView(this); title.setText("AI Sticker WA"); title.setTextSize(28); title.setGravity(Gravity.CENTER); root.addView(title,new LinearLayout.LayoutParams(-1,-2));
+        status=new TextView(this); status.setText("Tekan + untuk memilih foto"); status.setGravity(Gravity.CENTER); status.setPadding(0,10,0,12); root.addView(status,new LinearLayout.LayoutParams(-1,-2));
+        Button add=new Button(this); add.setText("＋  Tambah Foto"); root.addView(add,new LinearLayout.LayoutParams(-1,-2));
+        preview=new ImageView(this); preview.setAdjustViewBounds(true); preview.setScaleType(ImageView.ScaleType.CENTER_INSIDE); LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,0,1); pp.topMargin=12; root.addView(preview,pp);
+        LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL);
+        Button edit=new Button(this); edit.setText("Edit"); Button direct=new Button(this); direct.setText("Langsung Jadi Stiker"); row.addView(edit,new LinearLayout.LayoutParams(0,-2,1)); row.addView(direct,new LinearLayout.LayoutParams(0,-2,1)); root.addView(row);
+        Button save=new Button(this); save.setText("💚 Simpan ke WhatsApp"); root.addView(save,new LinearLayout.LayoutParams(-1,-2));
+        setContentView(root);
+        add.setOnClickListener(v->pick()); edit.setOnClickListener(v->editDialog()); direct.setOnClickListener(v->makeSticker()); save.setOnClickListener(v->saveToWhatsApp());
     }
-    private void generateSticker() {
-        String key=keyInput.getText().toString().trim(), prompt=promptInput.getText().toString().trim(); if(key.isEmpty()||prompt.isEmpty()){Toast.makeText(this,"Isi API key dan prompt dulu.",Toast.LENGTH_SHORT).show();return;} Toast.makeText(this,"Sedang membuat stiker...",Toast.LENGTH_SHORT).show();
-        executor.execute(()->{try{
-            URL u=new URL("https://api.openai.com/v1/images/generations"); HttpURLConnection c=(HttpURLConnection)u.openConnection(); c.setRequestMethod("POST"); c.setDoOutput(true); c.setRequestProperty("Authorization","Bearer "+key); c.setRequestProperty("Content-Type","application/json");
-            JSONObject body=new JSONObject(); body.put("model","gpt-image-1"); body.put("prompt","Create a WhatsApp sticker. Subject: "+prompt+". Centered character/object, clean bold outline, expressive, simple sticker composition, transparent background, no watermark. Keep the whole subject inside the canvas."); body.put("background","transparent"); body.put("output_format","png"); body.put("size","1024x1024"); body.put("quality","auto");
-            try(OutputStream os=c.getOutputStream()){os.write(body.toString().getBytes(StandardCharsets.UTF_8));} int code=c.getResponseCode(); InputStream is=code>=400?c.getErrorStream():c.getInputStream(); String response=new String(readAll(is),StandardCharsets.UTF_8); c.disconnect(); if(code>=400)throw new Exception("API error "+code+": "+response);
-            JSONObject json=new JSONObject(response); String b64=json.getJSONArray("data").getJSONObject(0).getString("b64_json"); byte[] bytes=Base64.decode(b64,Base64.DEFAULT); Bitmap bm=BitmapFactory.decodeByteArray(bytes,0,bytes.length); runOnUiThread(()->{sticker=bm;preview.setImageBitmap(bm);Toast.makeText(this,"Stiker selesai!",Toast.LENGTH_SHORT).show();});
-        }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Gagal: "+e.getMessage(),Toast.LENGTH_LONG).show());}});
-    }
-    private byte[] readAll(InputStream in)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);return out.toByteArray();}
-    private Uri saveSticker(){if(sticker==null){Toast.makeText(this,"Buat stiker dulu.",Toast.LENGTH_SHORT).show();return null;}try{ContentValues v=new ContentValues();v.put(MediaStore.Images.Media.DISPLAY_NAME,"ai_sticker_"+System.currentTimeMillis()+".png");v.put(MediaStore.Images.Media.MIME_TYPE,"image/png");v.put(MediaStore.Images.Media.RELATIVE_PATH,Environment.DIRECTORY_PICTURES+"/AI Sticker WA");Uri uri=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,v);if(uri==null)throw new Exception("Tidak bisa membuat file");try(OutputStream os=getContentResolver().openOutputStream(uri)){sticker.compress(Bitmap.CompressFormat.PNG,100,os);}Toast.makeText(this,"PNG disimpan.",Toast.LENGTH_SHORT).show();return uri;}catch(Exception e){Toast.makeText(this,"Gagal menyimpan: "+e.getMessage(),Toast.LENGTH_LONG).show();return null;}}
-    private void shareToWhatsApp(){Uri uri=saveSticker();if(uri==null)return;Intent i=new Intent(Intent.ACTION_SEND);i.setType("image/png");i.putExtra(Intent.EXTRA_STREAM,uri);i.setPackage("com.whatsapp");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);try{startActivity(i);}catch(Exception e){Toast.makeText(this,"WhatsApp tidak ditemukan. PNG sudah disimpan.",Toast.LENGTH_LONG).show();}}
-    @Override protected void onDestroy(){executor.shutdownNow();super.onDestroy();}
+    private void pick(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,PICK);}
+    @Override protected void onActivityResult(int r,int c,Intent d){super.onActivityResult(r,c,d);if(r==PICK&&c==RESULT_OK&&d!=null){try(InputStream in=getContentResolver().openInputStream(d.getData())){current=BitmapFactory.decodeStream(in);preview.setImageBitmap(current);status.setText("Foto siap. Pilih Edit atau Langsung Jadi Stiker.");}catch(Exception e){toast("Gagal membuka foto");}}}
+    private Bitmap square(Bitmap src){int s=Math.min(src.getWidth(),src.getHeight());Bitmap out=Bitmap.createBitmap(512,512,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(out);c.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);float scale=470f/s;Matrix m=new Matrix();m.setScale(scale,scale);m.postTranslate((512-src.getWidth()*scale)/2f,(512-src.getHeight()*scale)/2f);Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);c.drawBitmap(src,m,p);return out;}
+    private void makeSticker(){if(current==null){toast("Tambahkan foto dulu");return;}try{Bitmap b=square(current);StickerStore.add(this,b);createTray(b);toast("Stiker ditambahkan ke paket");}catch(Exception e){toast("Gagal membuat stiker");}}
+    private void editDialog(){if(current==null){toast("Tambahkan foto dulu");return;} LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL); EditText text=new EditText(this);text.setHint("Teks stiker (opsional)");box.addView(text); Button bg=new Button(this);bg.setText("Hilangkan Background");box.addView(bg);bg.setOnClickListener(v->{current=removeBackground(current);preview.setImageBitmap(current);}); new android.app.AlertDialog.Builder(this).setTitle("Edit Stiker").setView(box).setPositiveButton("Simpan",(d,w)->{String t=text.getText().toString().trim();if(!t.isEmpty())current=addText(current,t);preview.setImageBitmap(current);makeSticker();}).setNegativeButton("Batal",null).show();}
+    private Bitmap addText(Bitmap src,String text){Bitmap b=src.copy(Bitmap.Config.ARGB_8888,true);Canvas c=new Canvas(b);Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(Math.max(36,b.getWidth()/9f));p.setTypeface(Typeface.DEFAULT_BOLD);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(10);p.setColor(Color.WHITE);c.drawText(text,b.getWidth()/2f,b.getHeight()-35,p);p.setStyle(Paint.Style.FILL);p.setColor(Color.BLACK);c.drawText(text,b.getWidth()/2f,b.getHeight()-35,p);return b;}
+    private Bitmap removeBackground(Bitmap src){Bitmap b=src.copy(Bitmap.Config.ARGB_8888,true);int w=b.getWidth(),h=b.getHeight();int bg=b.getPixel(0,0);int br=Color.red(bg),bgc=Color.green(bg),bb=Color.blue(bg);int[] px=new int[w*h];b.getPixels(px,0,w,0,0,w,h);for(int y=0;y<h;y++)for(int x=0;x<w;x++){int i=y*w+x,c=px[i];int dist=Math.abs(Color.red(c)-br)+Math.abs(Color.green(c)-bgc)+Math.abs(Color.blue(c)-bb);if(dist<55)px[i]=Color.TRANSPARENT;}b.setPixels(px,0,w,0,0,w,h);return b;}
+    private void createTray(Bitmap b){try{Bitmap t=Bitmap.createScaledBitmap(b,96,96,true);java.io.File f=new java.io.File(getFilesDir(),"tray.webp");try(java.io.FileOutputStream o=new java.io.FileOutputStream(f)){t.compress(Bitmap.CompressFormat.WEBP_LOSSLESS,100,o);}}catch(Exception ignored){}}
+    private void saveToWhatsApp(){if(StickerStore.all(this).isEmpty()){toast("Buat minimal 1 stiker dulu");return;}Intent i=new Intent("com.whatsapp.intent.action.ENABLE_STICKER_PACK");i.putExtra("sticker_pack_id","ai_sticker_wa");i.putExtra("sticker_pack_authority","com.khiar.whatsappstickerai.stickercontentprovider");i.putExtra("sticker_pack_name","AI Sticker WA");try{startActivity(i);}catch(Exception e){toast("WhatsApp tidak mendukung pemasangan paket ini di perangkat ini.");}}
+    private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
 }
